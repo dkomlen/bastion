@@ -1,0 +1,15 @@
+service: bastion
+
+provider:
+  name: aws
+  runtime: java8
+  timeout: 300
+
+package:
+  artifact: target/scala-2.12/bastion-release.jar
+
+functions:
+  bastion:
+    handler: Main
+    events:
+      - schedule: rate(1 day)
