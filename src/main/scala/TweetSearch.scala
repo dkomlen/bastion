@@ -35,7 +35,7 @@ class TweetSearch(twitterClient: TwitterRestClient) extends LazyLogging {
         case None => result.statuses
       }
 
-      if (tweets.nonEmpty) search(query, resultType, maxAge, nextMaxId).map(_ ++ tweets)
+      if (tweets.size >= 20) search(query, resultType, maxAge, nextMaxId).map(_ ++ tweets)
       else Future(tweets.sortBy(_.created_at))
     } recover { case _ => Seq.empty }
   }

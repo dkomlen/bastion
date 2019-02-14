@@ -51,6 +51,7 @@ class Main extends RequestHandler[ScheduledEvent, Future[Unit]] with LazyLogging
 
   def processWorkflow(workflow: Workflow) = {
     workflow.searches.par.foreach(processSearch(_, workflow))
+    logger.info("Process workflow completed")
   }
 
   def processSearch(query: String, workflow: Workflow) = {
@@ -68,14 +69,17 @@ class Main extends RequestHandler[ScheduledEvent, Future[Unit]] with LazyLogging
     val searchTweets = getTweets(Seq(searchFuture))
     val userTweets = getTweets(Seq(userTweetsFuture))
 
+    logger.info(s"Got ${searchTweets.length} tweets for search: ${query}")
+
     val retweeted = userTweets.map(_.retweeted_status).flatten.map(_.id).toSet
     val validTweets = searchTweets.filter(t => !retweeted.contains(t.id))
 
     val newTweets = getTweets(tweetProcessor.process(validTweets, config.user, workflow))
 
     newTweets.foreach(tweet => {
-      logger.info(s"New tweet created: ${tweet.text}")
+      logger.info(s"Tweet processed: ${tweet.text}")
     })
+    logger.info("Process search completed")
   }
 
   def getTweets(futures: Seq[Future[Seq[Tweet]]]): Seq[Tweet] = {
