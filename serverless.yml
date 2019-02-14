@@ -12,4 +12,4 @@ functions:
   bastion:
     handler: Main
     events:
-      - schedule: rate(1 day)
+      - schedule: rate(2 hours)
