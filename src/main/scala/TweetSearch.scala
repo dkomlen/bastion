@@ -11,8 +11,6 @@ import scala.concurrent.Future
 
 class TweetSearch(twitterClient: TwitterRestClient) extends LazyLogging {
 
-  val userTweetsFuture: Option[Future[Seq[Tweet]]] = None
-
   def search(query: String, resultType: ResultType, maxAge: Option[Int], max_id: Option[Long] = None): Future[Seq[Tweet]] = {
     logger.info(s"Starting tweet search: [$query]")
 
@@ -40,19 +38,15 @@ class TweetSearch(twitterClient: TwitterRestClient) extends LazyLogging {
     } recover { case _ => Seq.empty }
   }
 
-  def userTweets(userId: String): Future[Seq[Tweet]] = synchronized {
-    userTweetsFuture match {
-      case Some(future) => future
-      case None => {
-        logger.info(s"Starting search for latest user tweets: $userId")
-        twitterClient.userTimelineForUser(userId).map {
-          ratedData =>
-            val tweets = ratedData.data
-            tweets
-        } recover {
-          case _ => Seq.empty
-        }
-      }
+  def userTweets(userId: String): Future[Seq[Tweet]] = {
+    logger.info(s"Starting search for latest user tweets: $userId")
+    twitterClient.userTimelineForUser(userId).map {
+      ratedData =>
+        val tweets = ratedData.data
+        tweets
+    } recover {
+      case _ => Seq.empty
     }
   }
 }
+

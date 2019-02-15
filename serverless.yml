@@ -4,6 +4,7 @@ provider:
   name: aws
   runtime: java8
   timeout: 300
+  memorySize: 512
 
 package:
   artifact: target/scala-2.12/bastion-release.jar

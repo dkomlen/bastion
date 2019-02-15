@@ -30,31 +30,36 @@ object Main extends Main {
   }
 }
 
-class Main extends RequestHandler[ScheduledEvent, Future[Unit]] with LazyLogging {
+class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
 
   val config: BastionConfig = ConfigFactory.load().as[BastionConfig]("bastion")
 
   val restClient = TwitterRestClient()
   val tweetSearch = new TweetSearch(restClient)
   val tweetProcessor = new TweetProcessor(restClient)
-  val timeoutMinutes = 2
+  val timeoutMinutes = 4
 
   def handleRequest(event: ScheduledEvent, context: Context) = {
 
-    logger.info("Starting")
-
-    config.workflows.par.foreach(processWorkflow)
-
-    logger.info("Shutting down")
-    restClient.shutdown()
+    try {
+      logger.info("Starting")
+      val userTweetsFuture = tweetSearch.userTweets(config.user)
+      config.workflows.par.foreach(processWorkflow(_, userTweetsFuture))
+      logger.info("Shutting down")
+      restClient.shutdown()
+      logger.info("Exiting")
+    }
+    catch {
+      case _: Throwable => // Avoid retries
+    }
   }
 
-  def processWorkflow(workflow: Workflow) = {
-    workflow.searches.par.foreach(processSearch(_, workflow))
+  def processWorkflow(workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) = {
+    workflow.searches.par.foreach(processSearch(_, workflow, userTweetsFuture))
     logger.info("Process workflow completed")
   }
 
-  def processSearch(query: String, workflow: Workflow) = {
+  def processSearch(query: String, workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) = {
 
     val resultType = workflow.result_type match {
       case "popular" => ResultType.Popular
@@ -64,15 +69,14 @@ class Main extends RequestHandler[ScheduledEvent, Future[Unit]] with LazyLogging
     }
 
     val searchFuture = tweetSearch.search(query, resultType, workflow.max_age)
-    val userTweetsFuture = tweetSearch.userTweets(config.user)
 
     val searchTweets = getTweets(Seq(searchFuture))
     val userTweets = getTweets(Seq(userTweetsFuture))
 
-    logger.info(s"Got ${searchTweets.length} tweets for search: ${query}")
-
     val retweeted = userTweets.map(_.retweeted_status).flatten.map(_.id).toSet
     val validTweets = searchTweets.filter(t => !retweeted.contains(t.id))
+
+    logger.info(s"Total: ${searchTweets.length}, valid: ${validTweets.length} tweets for search: ${query}")
 
     val newTweets = getTweets(tweetProcessor.process(validTweets, config.user, workflow))
 
