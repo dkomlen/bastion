@@ -37,14 +37,14 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
   val restClient = TwitterRestClient()
   val tweetSearch = new TweetSearch(restClient)
   val tweetProcessor = new TweetProcessor(restClient)
-  val timeoutMinutes = 4
+  val timeoutMinutes = 1
 
   def handleRequest(event: ScheduledEvent, context: Context) = {
 
     try {
       logger.info("Starting")
       val userTweetsFuture = tweetSearch.userTweets(config.user)
-      config.workflows.par.foreach(processWorkflow(_, userTweetsFuture))
+      config.workflows.foreach(processWorkflow(_, userTweetsFuture))
       logger.info("Shutting down")
       restClient.shutdown()
       logger.info("Exiting")
@@ -55,11 +55,11 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
   }
 
   def processWorkflow(workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) = {
-    workflow.searches.par.foreach(processSearch(_, workflow, userTweetsFuture))
+    workflow.searches.foreach(processSearch(_, workflow, userTweetsFuture))
     logger.info("Process workflow completed")
   }
 
-  def processSearch(query: String, workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) = {
+  def processSearch(query: String, workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) {
 
     val resultType = workflow.result_type match {
       case "popular" => ResultType.Popular

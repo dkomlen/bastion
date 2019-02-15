@@ -12,6 +12,7 @@ import scala.concurrent.Future
 class TweetSearch(twitterClient: TwitterRestClient) extends LazyLogging {
 
   def search(query: String, resultType: ResultType, maxAge: Option[Int], max_id: Option[Long] = None): Future[Seq[Tweet]] = {
+    val restClient = TwitterRestClient()
     logger.info(s"Starting tweet search: [$query]")
 
     def extractNextMaxId(params: Option[String]): Option[Long] = {
