@@ -35,11 +35,11 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
       case None => List()
       case Some(act) => {
         val future = (act, tweet.user) match {
-          case ("like", _) => {
+          case ("like", _) if !tweet.favorited => {
             logger.info(s"Liking tweet: ${tweet.id_str}")
             twitterClient.favoriteStatus(tweet.id).map(Seq(_))
           }
-          case ("follow", Some(user)) => {
+          case ("follow", Some(user)) if !user.following => {
             logger.info(s"Following user: @${user.screen_name}")
             twitterClient.followUserId(user.id)
             Future(Seq[Tweet]())
