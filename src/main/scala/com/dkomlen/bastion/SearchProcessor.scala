@@ -1,3 +1,5 @@
+package com.dkomlen.bastion
+
 import java.util.Calendar
 
 import com.danielasfregola.twitter4s.TwitterRestClient
@@ -9,7 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class TweetSearch(twitterClient: TwitterRestClient) extends LazyLogging {
+class SearchProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
 
   def search(query: String, resultType: ResultType, maxAge: Option[Int], max_id: Option[Long] = None): Future[Seq[Tweet]] = {
     val restClient = TwitterRestClient()

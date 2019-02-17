@@ -3,6 +3,7 @@ import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
 import com.danielasfregola.twitter4s.TwitterRestClient
 import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.enums.ResultType
+import com.dkomlen.bastion.{Action, ActionProcessor, SearchProcessor}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import net.ceedubs.ficus.Ficus._
@@ -15,9 +16,9 @@ import scala.language.postfixOps
 case class Workflow(
                      searches: List[String],
                      result_type: String,
-                     actions: List[String],
-                     comments: List[String],
-                     max_age: Option[Int] = None)
+                     max_age: Option[Int] = None,
+                     actions: List[Action],
+                   )
 
 case class BastionConfig(
                           user: String,
@@ -35,15 +36,15 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
   val config: BastionConfig = ConfigFactory.load().as[BastionConfig]("bastion")
 
   val restClient = TwitterRestClient()
-  val tweetSearch = new TweetSearch(restClient)
-  val tweetProcessor = new TweetProcessor(restClient)
+  val searchProcessor = new SearchProcessor(restClient)
+  val actionProcessor = new ActionProcessor(restClient)
   val timeoutMinutes = 1
 
   def handleRequest(event: ScheduledEvent, context: Context) = {
 
     try {
       logger.info("Starting")
-      val userTweetsFuture = tweetSearch.userTweets(config.user)
+      val userTweetsFuture = searchProcessor.userTweets(config.user)
       config.workflows.foreach(processWorkflow(_, userTweetsFuture))
       logger.info("Shutting down")
       restClient.shutdown()
@@ -68,7 +69,7 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
       case _ => ResultType.Mixed
     }
 
-    val searchFuture = tweetSearch.search(query, resultType, workflow.max_age)
+    val searchFuture = searchProcessor.search(query, resultType, workflow.max_age)
 
     val searchTweets = getTweets(Seq(searchFuture))
     val userTweets = getTweets(Seq(userTweetsFuture))
@@ -78,7 +79,7 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
 
     logger.info(s"Total: ${searchTweets.length}, valid: ${validTweets.length} tweets for search: ${query}")
 
-    val newTweets = getTweets(tweetProcessor.process(validTweets, config.user, workflow))
+    val newTweets = getTweets(actionProcessor.process(validTweets, config.user, workflow.actions))
 
     newTweets.foreach(tweet => {
       logger.info(s"Tweet processed: ${tweet.text}")
