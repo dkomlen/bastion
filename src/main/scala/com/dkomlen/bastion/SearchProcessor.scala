@@ -3,9 +3,9 @@ package com.dkomlen.bastion
 import java.util.Calendar
 
 import com.danielasfregola.twitter4s.TwitterRestClient
-import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.enums.Language
 import com.danielasfregola.twitter4s.entities.enums.ResultType.ResultType
+import com.danielasfregola.twitter4s.entities.{Tweet, User}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -39,6 +39,11 @@ class SearchProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
       if (tweets.size >= 20) search(query, resultType, maxAge, nextMaxId).map(_ ++ tweets)
       else Future(tweets.sortBy(_.created_at))
     } recover { case _ => Seq.empty }
+  }
+
+  def followers(userId: String): Future[Set[User]] = {
+    logger.info(s"Getting followers for user: $userId")
+    twitterClient.followersForUser(userId, count=200).map(d => d.data.users.toSet)
   }
 
   def userTweets(userId: String): Future[Seq[Tweet]] = {

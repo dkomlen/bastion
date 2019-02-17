@@ -1,8 +1,8 @@
 import com.amazonaws.services.lambda.runtime.events.ScheduledEvent
 import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
 import com.danielasfregola.twitter4s.TwitterRestClient
-import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.enums.ResultType
+import com.danielasfregola.twitter4s.entities.{Tweet, User}
 import com.dkomlen.bastion.{Action, ActionProcessor, SearchProcessor}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
@@ -20,6 +20,11 @@ case class Workflow(
                      actions: List[Action],
                    )
 
+case class UserStatus(
+                       followers: Set[User],
+                       retweetIds: Set[Long]
+                     )
+
 case class BastionConfig(
                           user: String,
                           workflows: List[Workflow]
@@ -33,19 +38,20 @@ object Main extends Main {
 
 class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
 
-  val config: BastionConfig = ConfigFactory.load().as[BastionConfig]("bastion")
-
-  val restClient = TwitterRestClient()
-  val searchProcessor = new SearchProcessor(restClient)
-  val actionProcessor = new ActionProcessor(restClient)
   val timeoutMinutes = 1
+
+  val config: BastionConfig = ConfigFactory.load().as[BastionConfig]("bastion")
+  val restClient = TwitterRestClient()
+
+  val searchProcessor = new SearchProcessor(restClient)
+  val userStatus = getStatus(config.user)
+  val actionProcessor = new ActionProcessor(restClient, userStatus.followers)
 
   def handleRequest(event: ScheduledEvent, context: Context) = {
 
     try {
       logger.info("Starting")
-      val userTweetsFuture = searchProcessor.userTweets(config.user)
-      config.workflows.foreach(processWorkflow(_, userTweetsFuture))
+      config.workflows.foreach(processWorkflow)
       logger.info("Shutting down")
       restClient.shutdown()
       logger.info("Exiting")
@@ -55,12 +61,24 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
     }
   }
 
-  def processWorkflow(workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) = {
-    workflow.searches.foreach(processSearch(_, workflow, userTweetsFuture))
+  def getStatus(user: String): UserStatus = {
+    val userTweetsFuture = searchProcessor.userTweets(user)
+    val userFollowersFuture = searchProcessor.followers(user)
+    val userTweets = getTweets(Seq(userTweetsFuture))
+    val retweeted = userTweets.map(_.retweeted_status).flatten.map(_.id).toSet
+    val followers = Await.result(userFollowersFuture, timeoutMinutes minutes)
+    UserStatus(
+      followers = followers,
+      retweetIds = retweeted
+    )
+  }
+
+  def processWorkflow(workflow: Workflow) = {
+    workflow.searches.foreach(processSearch(_, workflow))
     logger.info("Process workflow completed")
   }
 
-  def processSearch(query: String, workflow: Workflow, userTweetsFuture: Future[Seq[Tweet]]) {
+  def processSearch(query: String, workflow: Workflow) {
 
     val resultType = workflow.result_type match {
       case "popular" => ResultType.Popular
@@ -70,16 +88,13 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
     }
 
     val searchFuture = searchProcessor.search(query, resultType, workflow.max_age)
-
     val searchTweets = getTweets(Seq(searchFuture))
-    val userTweets = getTweets(Seq(userTweetsFuture))
 
-    val retweeted = userTweets.map(_.retweeted_status).flatten.map(_.id).toSet
-    val validTweets = searchTweets.filter(t => !retweeted.contains(t.id))
+    val validTweets = searchTweets.filter(t => !userStatus.retweetIds.contains(t.id))
 
     logger.info(s"Total: ${searchTweets.length}, valid: ${validTweets.length} tweets for search: ${query}")
 
-    val newTweets = getTweets(actionProcessor.process(validTweets, config.user, workflow.actions))
+    val newTweets = getTweets(actionProcessor.process(validTweets, workflow.actions))
 
     newTweets.foreach(tweet => {
       logger.info(s"Tweet processed: ${tweet.text}")
