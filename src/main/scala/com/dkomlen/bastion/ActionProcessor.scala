@@ -11,7 +11,7 @@ import scala.util.Random
 
 case class Action(
                    filter: List[String] = List(),
-                   order: List[String] = List("like"),
+                   order: List[String] = List("like-desc"),
                    take: Int = 1,
                    act: List[String],
                    comments: List[String] = List()
@@ -77,7 +77,8 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
     case Seq() => tweets
     case order :: tail => {
       val ordered = order match {
-        case "like" => tweets.sortBy(_.favorite_count).reverse
+        case "like-desc" => tweets.sortBy(_.favorite_count).reverse
+        case "friends-desc" => tweets.sortBy(_.user.map(_.friends_count).getOrElse(0)).reverse
         case _ => tweets
       }
       applyOrders(tail)(ordered)
