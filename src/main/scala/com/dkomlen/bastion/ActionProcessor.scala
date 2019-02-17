@@ -11,11 +11,11 @@ import scala.concurrent.Future
 import scala.util.Random
 
 case class Action(
-                   filter: Seq[String],
-                   order: Seq[String],
-                   take: Int,
+                   filter: Option[Seq[String]] = Some(Seq()),
+                   order: Seq[String] = Seq("like"),
+                   take: Option[Int] = Some(1),
                    act: Seq[String],
-                   comments: Seq[String]
+                   comments: Option[Seq[String]] = Some(Seq())
                  )
 
 class ActionProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
@@ -45,7 +45,7 @@ class ActionProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
               }
 
               if (action.act.contains("comment")) {
-                val comment = Random.shuffle(action.comments).head
+                val comment = Random.shuffle(action.comments.get).head
                 futures += twitterClient.createTweet(s"@${user.screen_name} $comment", in_reply_to_status_id = Some(tweet.id)).map(Seq(_))
               }
             }
