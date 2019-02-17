@@ -67,6 +67,12 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
         case "not-following" => {
           tweets.filter(tw => tw.user.isDefined && !followers.map(_.screen_name).contains(tw.user.get.screen_name))
         }
+        case "not-reply" => {
+          tweets.filter(tw => !tw.is_quote_status &&
+            tw.in_reply_to_screen_name.isEmpty &&
+            tw.in_reply_to_status_id.isEmpty &&
+            tw.in_reply_to_user_id.isEmpty)
+        }
         case _ => tweets
       }
       applyFilters(tail)(filtered)

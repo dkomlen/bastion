@@ -106,4 +106,3 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
     futures.flatMap(Await.result(_, timeoutMinutes minutes))
   }
 }
-
