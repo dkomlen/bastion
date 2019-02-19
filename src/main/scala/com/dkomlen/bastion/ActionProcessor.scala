@@ -61,7 +61,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
   }
 
   def applyFilters(filters: List[String])(tweets: Seq[Tweet]): Seq[Tweet] = filters match {
-    case Seq() => tweets
+    case Nil => tweets
     case filter :: tail => {
       val filtered = filter match {
         case "not-following" => {
@@ -72,6 +72,9 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
             tw.in_reply_to_screen_name.isEmpty &&
             tw.in_reply_to_status_id.isEmpty &&
             tw.in_reply_to_user_id.isEmpty)
+        }
+        case "not-liked" => {
+          tweets.filter(!_.favorited)
         }
         case _ => tweets
       }
