@@ -57,7 +57,10 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
       logger.info("Exiting")
     }
     catch {
-      case _: Throwable => // Avoid retries
+      case e: Throwable => {
+        logger.error("Handle request failed: {}", e.getMessage)
+        // Avoid retries
+      }
     }
   }
 
@@ -74,8 +77,14 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
   }
 
   def processWorkflow(workflow: Workflow) = {
-    workflow.searches.foreach(processSearch(_, workflow))
-    logger.info("Process workflow completed")
+    try {
+      workflow.searches.foreach(processSearch(_, workflow))
+      logger.info("Process workflow completed")
+    } catch {
+      case e: Throwable => {
+        logger.error("Process workflow failed: {} {}",e.getMessage, workflow)
+      }
+    }
   }
 
   def processSearch(query: String, workflow: Workflow) {
@@ -103,6 +112,15 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
   }
 
   def getTweets(futures: Seq[Future[Seq[Tweet]]]): Seq[Tweet] = {
-    futures.flatMap(Await.result(_, timeoutMinutes minutes))
+    futures.flatMap(f => {
+      try {
+        Await.result(f, timeoutMinutes minutes)
+      } catch {
+        case e: Throwable => {
+          logger.error("Process future failed {}", e.getMessage)
+          Seq()
+        }
+      }
+    })
   }
 }

@@ -11,6 +11,8 @@ libraryDependencies += "com.danielasfregola" %% "twitter4s" % "5.5"
 // Logging
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.1.2"
+
+// Config
 libraryDependencies += "com.iheart" %% "ficus" % "1.4.3"
 
 // AWS lambda

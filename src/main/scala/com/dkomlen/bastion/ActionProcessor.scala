@@ -49,7 +49,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
             logger.info(s"Commenting on tweet: ${tweet.id_str}, $comment")
             twitterClient.createTweet(s"@${user.screen_name} $comment", in_reply_to_status_id = Some(tweet.id)).map(Seq(_))
           }
-          case ("retweet", _) => {
+          case ("retweet", _) if !tweet.retweeted => {
             logger.info(s"Re-tweeting: ${tweet.id_str}")
             twitterClient.retweet(tweet.id, tweet_mode = TweetMode.Extended).map(Seq(_))
           }
@@ -88,6 +88,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
       val ordered = order match {
         case "like-desc" => tweets.sortBy(_.favorite_count).reverse
         case "friends-desc" => tweets.sortBy(_.user.map(_.friends_count).getOrElse(0)).reverse
+        case "age-asc" => tweets.sortBy(_.created_at).reverse
         case _ => tweets
       }
       applyOrders(tail)(ordered)
