@@ -9,6 +9,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Random
 
+case class UserStatus(
+                       followers: Set[User],
+                       retweetIds: Set[Long],
+                       likes: Set[Long]
+                     )
+
 case class Action(
                    filter: List[String] = List(),
                    order: List[String] = List("like-desc"),
@@ -17,7 +23,7 @@ case class Action(
                    comments: List[String] = List()
                  )
 
-class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) extends LazyLogging {
+class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) extends LazyLogging {
 
   def process(tweets: Seq[Tweet], actions: Seq[Action]): Seq[Future[Seq[Tweet]]] = {
 
@@ -35,7 +41,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
       case None => List()
       case Some(act) => {
         val future = (act, tweet.user) match {
-          case ("like", _) if !tweet.favorited => {
+          case ("like", _) if !isLiked(tweet) => {
             logger.info(s"Liking tweet: ${tweet.id_str}")
             twitterClient.favoriteStatus(tweet.id).map(Seq(_))
           }
@@ -49,7 +55,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
             logger.info(s"Commenting on tweet: ${tweet.id_str}, $comment")
             twitterClient.createTweet(s"@${user.screen_name} $comment", in_reply_to_status_id = Some(tweet.id)).map(Seq(_))
           }
-          case ("retweet", _) if !tweet.retweeted => {
+          case ("retweet", _) if !isRetweeted(tweet) => {
             logger.info(s"Re-tweeting: ${tweet.id_str}")
             twitterClient.retweet(tweet.id, tweet_mode = TweetMode.Extended).map(Seq(_))
           }
@@ -65,7 +71,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
     case filter :: tail => {
       val filtered = filter match {
         case "not-following" => {
-          tweets.filter(tw => tw.user.isDefined && !followers.map(_.screen_name).contains(tw.user.get.screen_name))
+          tweets.filter(tw => tw.user.isDefined && !userStatus.followers.map(_.screen_name).contains(tw.user.get.screen_name))
         }
         case "not-reply" => {
           tweets.filter(tw => !tw.is_quote_status &&
@@ -74,7 +80,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
             tw.in_reply_to_user_id.isEmpty)
         }
         case "not-liked" => {
-          tweets.filter(!_.favorited)
+          tweets.filter(!isLiked(_))
         }
         case _ => tweets
       }
@@ -98,4 +104,9 @@ class ActionProcessor(twitterClient: TwitterRestClient, followers: Set[User]) ex
   def applyTake(n: Int)(tweets: Seq[Tweet]): Seq[Tweet] = {
     tweets.take(n)
   }
+
+  private def isLiked(tweet: Tweet) = userStatus.likes.contains(tweet.id)
+
+  private def isRetweeted(tweet: Tweet) = userStatus.retweetIds.contains(tweet.id)
+
 }

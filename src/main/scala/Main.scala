@@ -3,7 +3,7 @@ import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
 import com.danielasfregola.twitter4s.TwitterRestClient
 import com.danielasfregola.twitter4s.entities.enums.ResultType
 import com.danielasfregola.twitter4s.entities.{Tweet, User}
-import com.dkomlen.bastion.{Action, ActionProcessor, SearchProcessor}
+import com.dkomlen.bastion.{Action, ActionProcessor, SearchProcessor, UserStatus}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import net.ceedubs.ficus.Ficus._
@@ -19,11 +19,6 @@ case class Workflow(
                      max_age: Option[Int] = None,
                      actions: List[Action],
                    )
-
-case class UserStatus(
-                       followers: Set[User],
-                       retweetIds: Set[Long]
-                     )
 
 case class BastionConfig(
                           user: String,
@@ -45,7 +40,7 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
 
   val searchProcessor = new SearchProcessor(restClient)
   val userStatus = getStatus(config.user)
-  val actionProcessor = new ActionProcessor(restClient, userStatus.followers)
+  val actionProcessor = new ActionProcessor(restClient, userStatus)
 
   def handleRequest(event: ScheduledEvent, context: Context) = {
 
@@ -70,9 +65,12 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
     val userTweets = getTweets(Seq(userTweetsFuture))
     val retweeted = userTweets.map(_.retweeted_status).flatten.map(_.id).toSet
     val followers = Await.result(userFollowersFuture, timeoutMinutes minutes)
+    val likes = getTweets(Seq(searchProcessor.likes(user))).map(_.id).toSet
+
     UserStatus(
       followers = followers,
-      retweetIds = retweeted
+      retweetIds = retweeted,
+      likes = likes
     )
   }
 

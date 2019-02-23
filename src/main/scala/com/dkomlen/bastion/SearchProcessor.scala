@@ -14,7 +14,6 @@ import scala.concurrent.Future
 class SearchProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
 
   def search(query: String, resultType: ResultType, maxAge: Option[Int], max_id: Option[Long] = None): Future[Seq[Tweet]] = {
-    val restClient = TwitterRestClient()
     logger.info(s"Starting tweet search: [$query]")
 
     def extractNextMaxId(params: Option[String]): Option[Long] = {
@@ -39,6 +38,11 @@ class SearchProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
       if (tweets.size >= 20) search(query, resultType, maxAge, nextMaxId).map(_ ++ tweets)
       else Future(tweets.sortBy(_.created_at))
     } recover { case _ => Seq.empty }
+  }
+
+  def likes(userId: String): Future[Seq[Tweet]] = {
+    logger.info(s"Getting likes for user: $userId")
+    twitterClient.favoriteStatusesForUser(userId, count = 200).map(d => d.data)
   }
 
   def followers(userId: String): Future[Set[User]] = {
