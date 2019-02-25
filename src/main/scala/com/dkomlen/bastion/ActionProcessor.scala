@@ -105,8 +105,8 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
     tweets.take(n)
   }
 
-  private def isLiked(tweet: Tweet) = userStatus.likes.contains(tweet.id)
+  private def isLiked(tweet: Tweet) = tweet.favorited || userStatus.likes.contains(tweet.id)
 
-  private def isRetweeted(tweet: Tweet) = userStatus.retweetIds.contains(tweet.id)
+  private def isRetweeted(tweet: Tweet) = tweet.retweeted || userStatus.retweetIds.contains(tweet.id)
 
 }
