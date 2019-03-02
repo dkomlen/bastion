@@ -1,9 +1,9 @@
 import com.amazonaws.services.lambda.runtime.events.ScheduledEvent
 import com.amazonaws.services.lambda.runtime.{Context, RequestHandler}
 import com.danielasfregola.twitter4s.TwitterRestClient
+import com.danielasfregola.twitter4s.entities.Tweet
 import com.danielasfregola.twitter4s.entities.enums.ResultType
-import com.danielasfregola.twitter4s.entities.{Tweet, User}
-import com.dkomlen.bastion.{Action, ActionProcessor, SearchProcessor, UserStatus}
+import com.dkomlen.bastion._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import net.ceedubs.ficus.Ficus._
@@ -80,7 +80,7 @@ class Main extends RequestHandler[ScheduledEvent, Unit] with LazyLogging {
       logger.info("Process workflow completed")
     } catch {
       case e: Throwable => {
-        logger.error("Process workflow failed: {} {}",e.getMessage, workflow)
+        logger.error("Process workflow failed: {} {}", e.getMessage, workflow)
       }
     }
   }

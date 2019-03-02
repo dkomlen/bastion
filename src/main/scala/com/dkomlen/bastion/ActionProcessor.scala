@@ -1,8 +1,8 @@
 package com.dkomlen.bastion
 
 import com.danielasfregola.twitter4s.TwitterRestClient
-import com.danielasfregola.twitter4s.entities.{Tweet, User}
 import com.danielasfregola.twitter4s.entities.enums.TweetMode
+import com.danielasfregola.twitter4s.entities.{Tweet, User}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -59,11 +59,21 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
             logger.info(s"Re-tweeting: ${tweet.id_str}")
             twitterClient.retweet(tweet.id, tweet_mode = TweetMode.Extended).map(Seq(_))
           }
-          case (_, _) => Future(Seq[Tweet]())
+          case (action, Some(user)) => action.split(":") match {
+            case Array("custom", classname) => {
+              applyCustomAction(tweet, user, classname)
+            }
+            case _ => Future(Seq[Tweet]())
+          }
         }
         future :: applyActs(acts.tail, comments)(tweet)
       }
     }
+  }
+
+  private def applyCustomAction(tweet: Tweet, user: User, classname: String) = {
+    val action: CustomAction = Class.forName(classname).newInstance.asInstanceOf[CustomAction]
+    action.run(tweet, user, userStatus, twitterClient)
   }
 
   def applyFilters(filters: List[String])(tweets: Seq[Tweet]): Seq[Tweet] = filters match {
