@@ -2,4 +2,4 @@ src/main/resources
 *target
 .idea
 .serverless
-
+serverless.yml

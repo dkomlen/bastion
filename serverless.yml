@@ -14,3 +14,7 @@ functions:
     handler: Main
     events:
       - schedule: rate(60 minutes)
+  potw:
+    handler: com.dkomlen.owarena.POTWLambda
+    events:
+      - schedule: rate(7 days)
