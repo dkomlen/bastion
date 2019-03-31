@@ -1,10 +1,22 @@
 ### Bastion
 
-Simple Twitter bot that does tweet searches and shares popular tweets under target account. 
+Framework for running Twitter workflows based on tweet searches, written
+in Scala.  
+
+### Usage
+
+```scala
+  val config = ConfigFactory.load().as[BastionConfig]("bastion")
+  val processor = new WorkflowProcessor(config)
+  processor.processWorkflows()
+```
+ - Runs workflows based on `application.conf` configuration file.
+ - Workflow is basd on set of tweet searches and a set of actions.
+ - Each action defines which tweets to pick from the search results and
+   what to do with every chosen tweet. For example like, retweet etc. 
 
 ### Configuration
 
-Create `src/main/resources/application.conf`:
 ```
 bastion {
     user = "<twitter-user>"
@@ -38,10 +50,7 @@ twitter {
   }
 }
 ```
-
-### Setup
-
-```
-> sbt assembly
-> serverless deploy -v
-```
+Available options:
+ - result_type: latest, top, mixed
+ - filter: not-following, not-reply, not-liked, follows
+ - order: like-desc, friends-desc, age-asc
