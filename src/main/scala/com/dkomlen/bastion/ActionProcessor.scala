@@ -30,50 +30,47 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
     actions.flatMap(action => {
 
       val select = (applyFilters(action.filter)(_)).andThen(applyOrders(action.order)(_)).andThen(applyTake(action.take)(_))
-      select(tweets).flatMap(applyActs(action.act, action.comments))
-
+      val selected = select(tweets)
+      action.act.flatMap(applyAction(_, action.comments, selected))
     })
   }
 
-  def applyActs(acts: Seq[String], comments: Seq[String])(tweet: Tweet): List[Future[Seq[Tweet]]] = {
+  def applyAction(action: String, comments: Seq[String], tweets: Seq[Tweet]): Seq[Future[Seq[Tweet]]] = {
 
-    acts.headOption match {
-      case None => List()
-      case Some(act) => {
-        val future = (act, tweet.user) match {
-          case ("like", _) if !isLiked(tweet) => {
-            logger.info(s"Liking tweet: ${tweet.id_str}")
-            twitterClient.favoriteStatus(tweet.id).map(Seq(_))
-          }
-          case ("follow", Some(user)) if !user.following => {
-            logger.info(s"Following user: @${user.screen_name}")
-            twitterClient.followUserId(user.id)
-            Future(Seq[Tweet]())
-          }
-          case ("comment", Some(user)) => {
-            val comment = Random.shuffle(comments).head
-            logger.info(s"Commenting on tweet: ${tweet.id_str}, $comment")
-            twitterClient.createTweet(s"@${user.screen_name} $comment", in_reply_to_status_id = Some(tweet.id)).map(Seq(_))
-          }
-          case ("retweet", _) if !isRetweeted(tweet) => {
-            logger.info(s"Re-tweeting: ${tweet.id_str}")
-            twitterClient.retweet(tweet.id, tweet_mode = TweetMode.Extended).map(Seq(_))
-          }
-          case (action, Some(user)) => action.split(":") match {
-            case Array("custom", classname) => {
-              applyCustomAction(tweet, user, classname)
+    action.split(":") match {
+      case Array("custom", classname) => {
+        applyCustomAction(tweets, classname)
+      }
+      case _ => {
+        tweets.map(tweet => {
+          (action, tweet.user) match {
+            case ("like", _) if !isLiked(tweet) => {
+              logger.info(s"Liking tweet: ${tweet.id_str}")
+              twitterClient.favoriteStatus(tweet.id).map(Seq(_))
             }
-            case _ => Future(Seq[Tweet]())
+            case ("follow", Some(user)) if !user.following => {
+              logger.info(s"Following user: @${user.screen_name}")
+              twitterClient.followUserId(user.id)
+              Future(Seq[Tweet]())
+            }
+            case ("comment", Some(user)) => {
+              val comment = Random.shuffle(comments).head
+              logger.info(s"Commenting on tweet: ${tweet.id_str}, $comment")
+              twitterClient.createTweet(s"@${user.screen_name} $comment", in_reply_to_status_id = Some(tweet.id)).map(Seq(_))
+            }
+            case ("retweet", _) if !isRetweeted(tweet) => {
+              logger.info(s"Re-tweeting: ${tweet.id_str}")
+              twitterClient.retweet(tweet.id, tweet_mode = TweetMode.Extended).map(Seq(_))
+            }
           }
-        }
-        future :: applyActs(acts.tail, comments)(tweet)
+        })
       }
     }
   }
 
-  private def applyCustomAction(tweet: Tweet, user: User, classname: String) = {
+  private def applyCustomAction(tweets: Seq[Tweet], classname: String) = {
     val action: CustomAction = Class.forName(classname).newInstance.asInstanceOf[CustomAction]
-    action.run(tweet, user, userStatus, twitterClient)
+    action.run(tweets, userStatus, twitterClient)
   }
 
   def applyFilters(filters: List[String])(tweets: Seq[Tweet]): Seq[Tweet] = filters match {
@@ -91,6 +88,9 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
         }
         case "not-liked" => {
           tweets.filter(!isLiked(_))
+        }
+        case "follows" => {
+          tweets.filter(tw => tw.user.isDefined && userStatus.followers.map(_.screen_name).contains(tw.user.get.screen_name))
         }
         case _ => tweets
       }
