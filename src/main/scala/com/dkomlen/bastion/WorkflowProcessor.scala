@@ -49,7 +49,8 @@ class WorkflowProcessor(config: BastionConfig) extends LazyLogging {
     UserStatus(
       followers = followers,
       retweetIds = retweeted,
-      likes = likes
+      likes = likes,
+      tweets = userTweets
     )
   }
 
@@ -76,11 +77,8 @@ class WorkflowProcessor(config: BastionConfig) extends LazyLogging {
     val searchFuture = searchProcessor.search(query, resultType, workflow.max_age)
     val searchTweets = getTweets(Seq(searchFuture))
 
-    val validTweets = searchTweets.filter(t => !userStatus.retweetIds.contains(t.id))
-
-    logger.info(s"Total: ${searchTweets.length}, valid: ${validTweets.length} tweets for search: ${query}")
-
-    val newTweets = getTweets(actionProcessor.process(validTweets, workflow.actions))
+    logger.info(s"Total: ${searchTweets.length} tweets for search: ${query}")
+    val newTweets = getTweets(actionProcessor.process(searchTweets, workflow.actions))
 
     newTweets.foreach(tweet => {
       logger.info(s"Tweet processed: ${tweet.text}")

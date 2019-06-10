@@ -10,9 +10,10 @@ import scala.concurrent.Future
 import scala.util.Random
 
 case class UserStatus(
-                       followers: Set[User],
+                       followers: Set[Long],
                        retweetIds: Set[Long],
-                       likes: Set[Long]
+                       likes: Set[Long],
+                       tweets: Seq[Tweet]
                      )
 
 case class Action(
@@ -78,7 +79,7 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
     case filter :: tail => {
       val filtered = filter match {
         case "not-following" => {
-          tweets.filter(tw => tw.user.isDefined && !userStatus.followers.map(_.screen_name).contains(tw.user.get.screen_name))
+          tweets.filter(tw => tw.user.isDefined && !userStatus.followers.contains(tw.user.get.id))
         }
         case "not-reply" => {
           tweets.filter(tw => !tw.is_quote_status &&
@@ -90,7 +91,10 @@ class ActionProcessor(twitterClient: TwitterRestClient, userStatus: UserStatus) 
           tweets.filter(!isLiked(_))
         }
         case "follows" => {
-          tweets.filter(tw => tw.user.isDefined && userStatus.followers.map(_.screen_name).contains(tw.user.get.screen_name))
+          tweets.filter(tw => tw.user.isDefined && userStatus.followers.contains(tw.user.get.id))
+        }
+        case "not-retweeted" => {
+          tweets.filter(t => !userStatus.retweetIds.contains(t.id))
         }
         case _ => tweets
       }

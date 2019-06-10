@@ -45,9 +45,9 @@ class SearchProcessor(twitterClient: TwitterRestClient) extends LazyLogging {
     twitterClient.favoriteStatusesForUser(userId, count = 200).map(d => d.data)
   }
 
-  def followers(userId: String): Future[Set[User]] = {
+  def followers(userId: String): Future[Set[Long]] = {
     logger.info(s"Getting followers for user: $userId")
-    twitterClient.followersForUser(userId, count=200).map(d => d.data.users.toSet)
+    twitterClient.followerIdsForUser(userId).map(d => d.data.ids.toSet)
   }
 
   def userTweets(userId: String): Future[Seq[Tweet]] = {
