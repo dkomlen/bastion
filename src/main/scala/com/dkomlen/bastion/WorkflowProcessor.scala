@@ -60,7 +60,7 @@ class WorkflowProcessor(config: BastionConfig) extends LazyLogging {
       logger.info("Process workflow completed")
     } catch {
       case e: Throwable => {
-        logger.error("Process workflow failed: {} {}", e.getMessage, workflow)
+        logger.error("Process workflow failed: {}", workflow, e)
       }
     }
   }
