@@ -52,5 +52,6 @@ twitter {
 ```
 Available options:
  - result_type: latest, top, mixed
- - filter: not-following, not-reply, not-liked, follows
+ - filter: not-following, not-reply, not-liked, follows, custom
  - order: like-desc, friends-desc, age-asc
+ - act: like, follow, comment, retweet, custom

@@ -13,7 +13,7 @@ case class Workflow(
                      searches: List[String],
                      result_type: String,
                      max_age: Option[Int] = None,
-                     actions: List[Action],
+                     actions: List[ActionConfig],
                    )
 
 case class BastionConfig(

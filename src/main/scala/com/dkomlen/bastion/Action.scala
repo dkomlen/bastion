@@ -6,6 +6,6 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
 
-trait CustomAction extends LazyLogging {
+trait Action extends LazyLogging {
   def run(tweets: Seq[Tweet], userStatus: UserStatus, twitterClient: TwitterRestClient): Seq[Future[Seq[Tweet]]]
 }
