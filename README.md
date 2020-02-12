@@ -5,6 +5,19 @@ in Scala.
 
 ### Usage
 
+Add the following to your `project/plugins.sbt` file:
+```
+addSbtPlugin("com.codecommit" % "sbt-github-packages" % "0.2.1")
+```
+
+Add the following to your `build.sbt` file:
+```
+ThisBuild / resolvers += Resolver.githubPackagesRepo("dkomlen", "bastion")
+libraryDependencies += "com.dkomlen" %% "bastion" % "0.1.1"
+```
+ - Replace version with latest released version
+
+Run workflow:
 ```scala
   val config = ConfigFactory.load().as[BastionConfig]("bastion")
   val processor = new WorkflowProcessor(config)
@@ -55,3 +68,4 @@ Available options:
  - filter: not-following, not-reply, not-liked, follows, custom
  - order: like-desc, friends-desc, age-asc
  - act: like, follow, comment, retweet, custom
+
